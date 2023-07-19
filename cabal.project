@@ -1,0 +1,2 @@
+-- TEMP: https://github.com/fjvallarino/monomer/pull/299
+packages: *,../../OpenSource/haskell_packages/monomer/

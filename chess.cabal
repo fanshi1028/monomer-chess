@@ -22,18 +22,32 @@ executable chess
     import:           warnings
     main-is:          Main.hs
     other-modules:
+        Chess.Model
+        Chess.Board
+        Chess.Piece
+        Chess.Board.Init
+        Chess.Check
+        Chess.Castling
+        Chess.Board.Util
+        Chess.Promotion
+        Chess.End
+        Chess.EnPassant
+        Chess.Move
+        Player
     -- other-extensions:
     build-depends:
         base ^>=4.18.0.0,
         monomer ^>=1.5.1.0,
-        -- lens ^>=5.2.2,
-        -- text ^>=2.0.2,
+        containers,
+        lens ^>=5.2.2,
+        text ^>=2.0.2,
         -- random ^>=1.2.1.1,
         -- splitmix,
         -- time,
-        -- data-default,
-        -- recursion-schemes,
-        -- free
+        data-default,
+        recursion-schemes,
+        free,
+        comonad
         
     hs-source-dirs:   app
     default-language: GHC2021
