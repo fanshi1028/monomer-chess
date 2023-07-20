@@ -1,8 +1,8 @@
 cabal-version:      3.4
 name:               chess
 version:            0.1.0.0
--- synopsis:
--- description:
+synopsis:           simple chess made with monomer
+description:        chess
 license:            MIT
 license-file:       LICENSE
 author:             fanshi
@@ -34,16 +34,12 @@ executable chess
         Chess.EnPassant
         Chess.Move
         Player
-    -- other-extensions:
     build-depends:
         base ^>=4.18.0.0,
         monomer ^>=1.5.1.0,
         containers,
         lens ^>=5.2.2,
         text ^>=2.0.2,
-        -- random ^>=1.2.1.1,
-        -- splitmix,
-        -- time,
         data-default,
         recursion-schemes,
         free,
