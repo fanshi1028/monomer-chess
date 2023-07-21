@@ -15,7 +15,7 @@ import Data.Functor.Base (ListF (..))
 import Data.Functor.Foldable (Recursive (cata))
 import Data.List.NonEmpty as NE (NonEmpty, filter, toList)
 import Data.Map.Lazy as Map (Map, null, (!?))
-import Data.Maybe (fromMaybe, isJust, maybeToList)
+import Data.Maybe (fromMaybe, isNothing, maybeToList)
 import Data.Text (pack)
 import Monomer
 import Monomer.Lens (HasA (a), HasH (h), HasW (w))
@@ -25,7 +25,7 @@ data ChessModel = ChessModel
   { _currentPlayerState :: Either (Either Stalemate Win) (Player, Map (Position, ChessPiece) (NonEmpty (Position, (Maybe ChessPiece, ChessBoard)))),
     _chessBoard :: ChessBoard,
     _pickedChessPiece :: Maybe ((Position, ChessPiece), [(Position, (Maybe ChessPiece, ChessBoard))]),
-    _promotingPawnPosition :: Maybe Position,
+    _promotingPawn :: Maybe (Position, Maybe ChessPieceType),
     _enPassantColumn :: Maybe Column,
     _chessBoardScale :: Double
   }
@@ -45,7 +45,7 @@ data ChessEvent
   deriving (Eq, Show)
 
 buildChessUI :: WidgetEnv ChessModel ChessEvent -> ChessModel -> WidgetNode ChessModel ChessEvent
-buildChessUI _wenv (ChessModel eCurrentPlayer _chessBoard _pickedChessPiece _promotingPawnPosition _enPassantColumn _chessBoardScale) = vstack [chessBoardUI, popups]
+buildChessUI _wenv (ChessModel eCurrentPlayer _chessBoard _pickedChessPiece _promotingPawn _enPassantColumn _chessBoardScale) = vstack [chessBoardUI, popups]
   where
     buidldChessPieceUI chessPiece = label (chessPieceToEmoji chessPiece) `styleBasic` [textColor black, textSize $ 65 * _chessBoardScale]
     chessBoardUI = hgrid $ do
@@ -88,16 +88,14 @@ buildChessUI _wenv (ChessModel eCurrentPlayer _chessBoard _pickedChessPiece _pro
                          ]
     popups = case eCurrentPlayer of
       -- NOTE: for choosing what pawn promotiing to
-      Right (player, _) ->
-        popupD_ (WidgetValue (isJust _promotingPawnPosition)) [popupDisableClose, popupOpenAtCursor]
-          . widgetMaybe _promotingPawnPosition
-          $ \pos ->
-            hstack
-              ( do
-                  target <- pawnPromotionTargets
-                  pure . box_ ([onClick, onClickEmpty] <*> [PawnPromotion pos target]) . buidldChessPieceUI $ ChessPiece player target
-              )
-              `styleBasic` [bgColor brown]
+      Right (player, _) -> widgetMaybe _promotingPawn $ \(pos, mTarget) ->
+        popupD_ (WidgetValue (isNothing mTarget)) [popupDisableClose, popupOpenAtCursor] $
+          hstack
+            ( do
+                target <- pawnPromotionTargets
+                pure . box_ ([onClick, onClickEmpty] <*> [PawnPromotion pos target]) . buidldChessPieceUI $ ChessPiece player target
+            )
+            `styleBasic` [bgColor brown]
       -- NOTE: for displaying end game result
       Left result ->
         popupD_ (WidgetValue True) [popupDisableClose, alignMiddle, alignCenter, popupAlignToWindow] $
@@ -166,7 +164,7 @@ handleChessEvent _wenv _node model@(ChessModel (Right (currentPlayer, validMoves
      in case move of
           Left _ -> simplyMove
           Right ((_, (ChessPiece _ chessPieceType)), moveToPos@(Position x y)) ->
-            let forPromote = [Model $ model' & promotingPawnPosition .~ Just moveToPos]
+            let forPromote = [Model $ model' & promotingPawn .~ Just (moveToPos, Nothing)]
                 forEnPassant = [Model $ model' & enPassantColumn .~ Just x, Event EndTurn]
              in case (chessPieceType, currentPlayer, y) of
                   -- NOTE: pawn promotion!!!
@@ -178,10 +176,11 @@ handleChessEvent _wenv _node model@(ChessModel (Right (currentPlayer, validMoves
                   _ -> simplyMove
   ChessBoardResize rect -> [Model $ model & chessBoardScale .~ min (rect ^. w / 800) (rect ^. h / 600)]
   PawnPromotion pos chessPieceType ->
-    [ Model $
+    [ Model $ model & promotingPawn .~ Just (pos, Just chessPieceType), -- NOTE: TEMP FIXME close the popup overlay before remove it (by updating the model)
+      Model $
         model
           & chessBoard %~ insertToChessBoard pos (ChessPiece currentPlayer chessPieceType)
-          & promotingPawnPosition .~ Nothing,
+          & promotingPawn .~ Nothing,
       Event EndTurn
     ]
   EndTurn -> pure . Model $ do
